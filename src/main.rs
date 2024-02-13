@@ -1,7 +1,7 @@
 // Uncomment this block to pass the first stage
 // use std::net::TcpListener;
 
-use std::{io::Write, net::{TcpListener, TcpStream}};
+use std::{io::{Read, Write}, net::{TcpListener, TcpStream}};
 
 fn main() {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
@@ -14,7 +14,13 @@ fn main() {
 }
 
 fn handle_connection(stream: &mut TcpStream) {
-    let response = "+PONG\r\n";
-    stream.write(response.as_bytes()).unwrap();
-    stream.flush().unwrap();
+    let mut buffer = [0; 1024];
+    loop {
+        let bytes_read = stream.read(&mut buffer).expect("read failure");
+        if bytes_read == 0 {
+            break;
+        }
+        let response = "+PONG\r\n";
+        stream.write_all(response.as_bytes()).expect("write failure");
+    }
 }
