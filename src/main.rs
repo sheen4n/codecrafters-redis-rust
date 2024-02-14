@@ -9,29 +9,23 @@ fn main() {
     println!("Logs from your program will appear here!");
     let listener: TcpListener = TcpListener::bind("127.0.0.1:6379").expect("could not bind");
     for stream in listener.incoming() {
-        match stream {
+        thread::spawn(move || match stream {
             Ok(mut stream) => {
-                thread::spawn(move || {
-                    handle_connection(&mut stream);
-                });
+                println!("Accepted new connection");
+                handle_stream(&mut stream);
             }
             Err(e) => {
-                println!("error: {e}");
+                println!("error: {}", e);
             }
-        }
+        });
     }
 }
 
-fn handle_connection(stream: &mut TcpStream) {
+fn handle_stream(stream: &mut TcpStream) {
+    let response: &str = "+PONG\r\n";
     let mut buffer: [u8; 1024] = [0; 1024];
-    loop {
-        let bytes_read: usize = stream.read(&mut buffer).expect("read failure");
-        if bytes_read == 0 {
-            break;
-        }
-        let response: &str = "+PONG\r\n";
-        stream
-            .write_all(response.as_bytes())
-            .expect("write failure");
+
+    while let Ok(_) = stream.read(&mut buffer) {
+        _ = stream.write(&response.as_bytes())
     }
 }
