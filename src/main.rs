@@ -26,9 +26,8 @@ fn get_db(db: &Mutex<HashMap<String, String>>, key: &str) -> String {
         if let Some(value) = db.get(&key.to_string()) {
             return format!("${}\r\n{}\r\n", value.len(), value);
         }
-        return "$-1\r\n".to_string();
     }
-    "".to_string()
+    "$-1\r\n".to_string()
 }
 
 fn evaluate_resp(mut cmd: &[u8], db: &Mutex<HashMap<String, String>>) -> String {
