@@ -1,6 +1,8 @@
 use std::{
+    collections::HashMap,
     io::{Read, Write},
     net::{TcpListener, TcpStream},
+    sync::Mutex,
     thread,
 };
 
@@ -11,7 +13,25 @@ impl RESPDataType {
     const BULK: u8 = b'$';
 }
 
-fn evaluate_resp(mut cmd: &[u8]) -> String {
+fn set_db(db: &Mutex<HashMap<String, String>>, key: &str, value: &str) -> String {
+    if let Ok(mut db) = db.lock() {
+        db.insert(key.to_string(), value.to_string());
+    }
+
+    "+OK\r\n".to_string()
+}
+
+fn get_db(db: &Mutex<HashMap<String, String>>, key: &str) -> String {
+    if let Ok(db) = db.lock() {
+        if let Some(value) = db.get(&key.to_string()) {
+            return format!("${}\r\n{}\r\n", value.len(), value);
+        }
+        return "$-1\r\n".to_string();
+    }
+    "".to_string()
+}
+
+fn evaluate_resp(mut cmd: &[u8], db: &Mutex<HashMap<String, String>>) -> String {
     //  *2\r\n$4\r\nECHO\r\n$3\r\nhey\r\n
 
     let mut len: u8 = 0;
@@ -24,9 +44,11 @@ fn evaluate_resp(mut cmd: &[u8]) -> String {
     match cmd[0] {
         RESPDataType::BULK => {
             let args = get_args(cmd, len);
-            match &args[0] {
-                x if x == "ping" => "+PONG\r\n".to_string(),
-                x if x == "echo" => format!("+{}\r\n", args[1]),
+            match &args[0][..] {
+                "ping" => "+PONG\r\n".to_string(),
+                "echo" => format!("+{}\r\n", args[1]),
+                "set" => set_db(db, &args[1], &args[2]),
+                "get" => get_db(db, &args[1]),
                 _ => "-not_supported command".to_string(),
             }
         }
@@ -49,26 +71,30 @@ fn get_args(mut cmd: &[u8], mut len: u8) -> Vec<String> {
 
 fn main() {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
+    let db: Mutex<HashMap<String, String>> = Mutex::new(HashMap::new());
     println!("Logs from your program will appear here!");
     let listener: TcpListener = TcpListener::bind("127.0.0.1:6379").expect("could not bind");
-    for stream in listener.incoming() {
-        thread::spawn(move || match stream {
-            Ok(mut stream) => {
-                println!("Accepted new connection");
-                handle_stream(&mut stream);
-            }
-            Err(e) => {
-                println!("error: {}", e);
-            }
-        });
-    }
+    thread::scope(|s| {
+        for stream in listener.incoming() {
+            let db = &db;
+            s.spawn(move || match stream {
+                Ok(mut stream) => {
+                    println!("Accepted new connection");
+                    handle_stream(&mut stream, &db);
+                }
+                Err(e) => {
+                    println!("error: {}", e);
+                }
+            });
+        }
+    });
 }
 
-fn handle_stream(stream: &mut TcpStream) {
+fn handle_stream(stream: &mut TcpStream, db: &Mutex<HashMap<String, String>>) {
     let mut buffer = [0u8; 120];
 
     while let Ok(_) = stream.read(&mut buffer) {
-        let val: String = evaluate_resp(&mut buffer);
+        let val: String = evaluate_resp(&mut buffer, &db);
         _ = stream.write(&val.as_bytes())
     }
 }
