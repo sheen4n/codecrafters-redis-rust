@@ -48,9 +48,16 @@ fn evaluate_resp(mut cmd: &[u8], db: &Mutex<HashMap<String, (String, Instant)>>)
 
     let mut len: u8 = 0;
     if cmd[0] == RESPDataType::ARRAY {
-        len = cmd[1] - b'0';
+        let mut digits: Vec<char> = Vec::new();
+        let mut i = 1;
+        while i < cmd.len() && cmd[i] - b'0' < 10 {
+            digits.push(cmd[i].into());
+            i += 1;
+        }
+        let s: String = (&digits).into_iter().collect();
+        len = s.parse().expect("not a valid number");
         //  $4\r\nECHO\r\n$3\r\nhey\r\n
-        cmd = &cmd[4..];
+        cmd = &cmd[(3 + digits.len())..];
     }
 
     // println!("{len}");
@@ -76,11 +83,19 @@ fn evaluate_resp(mut cmd: &[u8], db: &Mutex<HashMap<String, (String, Instant)>>)
 fn get_args(mut cmd: &[u8], mut len: u8) -> Vec<String> {
     let mut args: Vec<String> = Vec::new();
     while len > 0 {
+        let mut digits: Vec<char> = Vec::new();
+        let mut i = 1;
+        while i < cmd.len() && cmd[i] - b'0' < 10 {
+            digits.push(cmd[i].into());
+            i += 1;
+        }
+        let digits_str: String = (&digits).into_iter().collect();
         // $4\r\nECHO\r\n$3\r\nhey\r\n
-        let arg_len: usize = (cmd[1] - b'0') as usize;
-        let arg = String::from_utf8_lossy(&cmd[4..arg_len + 4]);
+        let arg_len: usize = digits_str.parse().expect("not a valid args len");
+        let start = 3 + digits_str.len();
+        let arg = String::from_utf8_lossy(&cmd[start..start + arg_len]);
         args.push(arg.into());
-        cmd = &cmd[arg_len + 4 + 2..];
+        cmd = &cmd[start + arg_len + 2..];
         len -= 1;
     }
     args
