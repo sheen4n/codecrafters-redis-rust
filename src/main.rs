@@ -74,6 +74,7 @@ fn evaluate_resp(mut cmd: &[u8], db: &Mutex<HashMap<String, (String, Instant)>>)
                     _ => set_db(db, &args[1], &args[2], u64::MAX),
                 },
                 "get" => get_db(db, &args[1]),
+                "info" => "+role:master\r\n".to_string(),
                 _ => "-not_supported command".to_string(),
             }
         }
