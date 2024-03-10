@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    env::args,
     io::{Read, Write},
     net::{TcpListener, TcpStream},
     sync::Mutex,
@@ -102,10 +103,16 @@ fn get_args(mut cmd: &[u8], mut len: u8) -> Vec<String> {
 }
 
 fn main() {
-    // You can use print statements as follows for debugging, they'll be visible when running tests.
-    let db: Mutex<HashMap<String, (String, Instant)>> = Mutex::new(HashMap::new());
     println!("Logs from your program will appear here!");
-    let listener: TcpListener = TcpListener::bind("127.0.0.1:6379").expect("could not bind");
+    let mut port = "6379";
+    let args: Vec<_> = args().collect();
+    if args.len() > 1 && args[1] == "--port" {
+        port = &args[2]
+    }
+
+    let listener: TcpListener =
+        TcpListener::bind(format!("127.0.0.1:{}", port)).expect("could not bind");
+    let db: Mutex<HashMap<String, (String, Instant)>> = Mutex::new(HashMap::new());
     thread::scope(|s| {
         for stream in listener.incoming() {
             let db = &db;
