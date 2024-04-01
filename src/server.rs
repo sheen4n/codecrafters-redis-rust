@@ -5,15 +5,24 @@ use crate::{redis_handler::RedisHandler, request::Request};
 pub struct Server<'server> {
     host: &'server str,
     port: &'server str,
-    db: Mutex<HashMap<String, (String, Instant)>>,
+    pub db: Mutex<HashMap<String, (String, Instant)>>,
+    pub master_host: Option<&'server str>,
+    pub master_port: Option<&'server str>,
 }
 
 impl<'server> Server<'server> {
-    pub fn new(host: &'server str, port: &'server str) -> Self {
+    pub fn new(
+        host: &'server str,
+        port: &'server str,
+        master_host: Option<&'server str>,
+        master_port: Option<&'server str>,
+    ) -> Self {
         Self {
             host,
             port,
             db: Mutex::new(HashMap::new()),
+            master_host,
+            master_port,
         }
     }
 
@@ -40,7 +49,7 @@ impl<'server> Server<'server> {
                                         break;
                                     }
                                     let response = match Request::try_from(&buffer[..]) {
-                                        Ok(request) => handler.handle_request(&request, &self.db),
+                                        Ok(request) => handler.handle_request(&request, &self),
                                         Err(e) => handler.handle_bad_request(&e),
                                     };
                                     if let Err(e) = response.send(&mut stream) {

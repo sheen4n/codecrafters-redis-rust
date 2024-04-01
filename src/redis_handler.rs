@@ -7,6 +7,7 @@ use std::{
 use crate::{
     request::{ParseError, RedisCommand},
     response::Response,
+    server::Server,
 };
 
 fn set_db(
@@ -52,9 +53,10 @@ impl RedisHandler {
     pub fn handle_request(
         &mut self,
         request: &crate::request::Request,
-        db: &Mutex<HashMap<String, (String, Instant)>>,
+        server: &Server,
     ) -> crate::response::Response {
         println!("{:?}", request);
+        let db = &server.db;
         match request.command() {
             &RedisCommand::PING => Response::new("+PONG\r\n".to_string()),
             &RedisCommand::ECHO => Response::new(format!("+{}\r\n", request.payload()[1])),
@@ -66,7 +68,10 @@ impl RedisHandler {
                 request.expiry(),
             )),
             &RedisCommand::GET => Response::new(get_db(db, &request.payload()[1])),
-            &RedisCommand::INFO => Response::new("+role:master\r\n".to_string()),
+            &RedisCommand::INFO => match &server.master_host {
+                Some(_) => Response::new("+role:slave\r\n".to_string()),
+                None => Response::new("+role:master\r\n".to_string()),
+            },
             // _ => Response::new("-not_supported command".to_string()),
         }
     }
