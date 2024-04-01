@@ -70,7 +70,7 @@ impl RedisHandler {
             &RedisCommand::GET => Response::new(get_db(db, &request.payload()[1])),
             &RedisCommand::INFO => match &server.master_host {
                 Some(_) => Response::new("+role:slave\r\n".to_string()),
-                None => Response::new("+role:master\r\n".to_string()),
+                None => Response::new("+role:master\nmaster_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\nmaster_repl_offset:0\r\n".to_string()),
             },
             // _ => Response::new("-not_supported command".to_string()),
         }
